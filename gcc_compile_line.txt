@@ -1,0 +1,1 @@
+g++ raytrace.cpp framework.cpp --std=c++17 -o output  -lGL -lGLU -lglut -lGLEW -lm
