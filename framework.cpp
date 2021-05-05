@@ -28,7 +28,7 @@ void onIdle();
 
 // Entry point of the application
 int main(int argc, char * argv[]) {
-	// Initialize GLUT, Glew and OpenGL 
+	// Initialize GLUT, Glew and OpenGL
 	glutInit(&argc, argv);
 
 	// OpenGL major and minor versions
@@ -42,7 +42,7 @@ int main(int argc, char * argv[]) {
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH | GLUT_3_2_CORE_PROFILE);  // 8 bit R,G,B,A + double buffer + depth buffer
 #else
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
-#endif
+#endif	
 	glutCreateWindow(argv[0]);
 
 #if !defined(__APPLE__)
