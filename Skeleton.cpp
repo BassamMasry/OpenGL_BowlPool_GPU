@@ -196,19 +196,21 @@ public:
 		vector<vec4> image(width * height, dbrown);
 
 		float t = 0.0f;
-		float r = 0.0f;
+		int r = 0;
 		int xcord = 0;
 		int ycord = 0;
 		// the int casting to tranculate any deecimal point
 		int maxrad = width < height ? width : height;
 		maxrad = maxrad / 2;
+		r = maxrad;
 
 		for (uint i = 0; i < numberCircles; ++i)
 		{
 			// t is between 0 and 1
 			t = i / (numberCircles - 1.0f);
 			// radius decrease from 1 to 1/numberCircles
-			r = (float) maxrad * (1 - t) + 1.0f / numberCircles * t;
+			r = (int) maxrad * sqrtf(1 - t);
+			if (r <= 0) { break; }
 			// check for odd and even circle and assign to color (c)
 			vec4 c = (i % 2 == 0) ? lbrown : dbrown;
 			for (int x = maxrad; x < width ; ++x)
@@ -598,16 +600,19 @@ class Object
 	Material * material;
 	Texture * texture;
 	Geometry * geometry;
+	char type = 0;
+	vec3 velocity = vec3(0,0,0);
 public:
 	vec3 scale, pos, rotAxis;
 	float rotAngle;
-	Object (Shader * _shader, Material * _material, Texture * _texture, Geometry * _geometry) :
+	Object (Shader * _shader, Material * _material, Texture * _texture, Geometry * _geometry, char _type) :
 	scale(vec3(1,1,1)), pos(vec3(0,0,0)), rotAxis(vec3(0,0,1)), rotAngle(0)
 	{
 		shader = _shader;
 		texture = _texture;
 		material = _material;
 		geometry = _geometry;
+		type = _type;
 	}
 
 	virtual void SetModelingTransform (mat4& M, mat4& Minv)
@@ -628,6 +633,12 @@ public:
 		shader -> Bind(state);
 		geometry -> Draw();
 	}
+
+	char getType()
+	{
+		return type;
+	}
+
 	/*
 	void Draw (RenderState state)
 	{
@@ -645,15 +656,29 @@ public:
 	}
 	*/
 	// virtual void Animate(float dt) {}
-	virtual void Animate(float tstart, float tend) { rotAngle = 0.8f * tend; }
+	virtual void Animate(float dt, vec2 acc)
+	{
+		vec3 accel = vec3(acc.x, acc.y, 0);
+		velocity = velocity + accel * dt;
+		pos = pos + velocity * dt;
+		pos.z = cosh(pos.x * pos.x + pos.y * pos.y) + 0.1f;
+		// rotAngle = 0.8f * dt;
+	}
 };
+
+float rnd() { return (float)rand() / RAND_MAX; }
 
 class Scene
 {
 	OrthoCamera camera;
 	vector<Object *> objects;
 	vector<Light> lights;
+	uint numballs = 5;
+	float light1mov = 0;
+	float light2mov = 0;
 public:
+	vec2 acc  = vec2(0,0);
+	uint move_counter = 0;
 	void Build()
 	{
 		// Shader
@@ -675,7 +700,7 @@ public:
 		// Textures
 		Texture * texture4x8 = new CheckerBoardTexture(4,8);
 		Texture * texture15x20 = new CheckerBoardTexture(15,20);
-		Texture * bowl50x50 = new BowlTexture(512,512,10);
+		Texture * bowl50x50 = new BowlTexture(1024,1024,20);
 		Texture * red4x4 = new RedTexture(4,4);
 		Texture * green4x4 = new GreenTexture(4,4);
 		Texture * blue4x4 = new BlueTexture(4,4);
@@ -685,21 +710,35 @@ public:
 		Geometry * bowl = new Bowl();
 
 		// Objects
-		Object * sphereObject1 = new Object(phongShader, material0, red4x4, sphere);
-		sphereObject1 -> pos = vec3(-0.6, -0.6, 1.5);
-		sphereObject1 -> scale = vec3(0.05f, 0.05f, 0.05f);
-		objects.push_back(sphereObject1);
+		// Object * sphereObject1 = new Object(phongShader, material0, red4x4, sphere);
+		// sphereObject1 -> pos = vec3(-0.6, -0.6, 1.5);
+		// sphereObject1 -> scale = vec3(0.05f, 0.05f, 0.05f);
+		// objects.push_back(sphereObject1);
+		//
+		// Object * sphereObject2 = new Object(phongShader, material0, green4x4, sphere);
+		// sphereObject2 -> pos = vec3(0, 0, 1);
+		// sphereObject2 -> scale = vec3(0.05f, 0.05f, 0.05f);
+		// objects.push_back(sphereObject2);
 
-		Object * sphereObject2 = new Object(phongShader, material0, green4x4, sphere);
-		sphereObject2 -> pos = vec3(0, 0, 1);
-		sphereObject2 -> scale = vec3(0.05f, 0.05f, 0.05f);
-		objects.push_back(sphereObject2);
-
-		Object * bowlObject = new Object(phongShader, material0, bowl50x50, bowl);
+		Object * bowlObject = new Object(phongShader, material0, bowl50x50, bowl, 'b');
 		bowlObject -> pos = vec3(0,0,0);
 		// bowlObject -> rotAxis = vec3(0,0,1);
 		// bowlObject -> rotAngle = 1.570;
 		objects.push_back(bowlObject);
+
+		for (uint i = 0; i < numballs; ++i)
+		{
+			Texture * sphereTexture;
+			float randomnum = rnd();
+			if (0 <= randomnum && randomnum < 0.33) { sphereTexture = red4x4; printf("Red\n");}
+			else if (0.33 <= randomnum && randomnum < 0.66) { sphereTexture = blue4x4;printf("Blue\n"); }
+			else if (0.66 <= randomnum && randomnum <= 1) { sphereTexture = green4x4; printf("Green\n");}
+			else { printf("Random number generation error\n"); }
+
+			objects.push_back(new Object(phongShader, material0, sphereTexture, sphere, 's'));
+			objects.back() -> pos = vec3(-0.6, -0.6, 1.5);
+			objects.back() -> scale = vec3(0.05f, 0.05f, 0.05f);
+		}
 
 		// Camera
 		camera.wEye = vec3(0,0,2);
@@ -744,11 +783,39 @@ public:
 	}
 	*/
 
-	void Animate(float tstart, float tend)
+	void Animate(float dt)
 	{
+		if (light1mov == 0) { light1mov = 2 * dt; }
+		if (light2mov == 0) { light2mov = 2 * dt; }
+		// if (lights[0].wLightPos.y >= 7) { light1mov = 0.01f; }
+		// else if (lights[0].wLightPos.y <= -7) { light1mov = -0.01f; }
+		if (lights[0].wLightPos.y >= 7) { light1mov = 2 * dt; }
+		else if (lights[0].wLightPos.y <= -7) { light1mov = -2 * dt; }
+
+		if (lights[1].wLightPos.y >= 7) { light2mov = -2 * dt; }
+		else if (lights[1].wLightPos.y <= -7) { light2mov = 2 * dt; }
+
 		// for (Object * obj : objects) { obj -> Animate(tstart, tend); }
-		lights[0].wLightPos.y -= 0.01f;
-		lights[1].wLightPos.y += 0.01f;
+		lights[0].wLightPos.y -= light1mov;
+		lights[1].wLightPos.y += light2mov;
+
+		for(uint counter = 0; counter < move_counter; ++counter)
+		{
+			if (counter >= objects.size()) { break; }
+			if (objects[counter] -> getType() == 's')
+			{
+				objects[counter] -> Animate(dt, acc);
+			}
+		}
+
+		// for (auto b : objects)
+		// {
+		// 	if (b -> getType() == 's')
+		// 	{
+		// 		b -> Animate(dt, acc);
+		// 	}
+		// }
+
 	}
 };
 
@@ -845,28 +912,38 @@ void onKeyboard(unsigned char key, int pX, int pY) {
 void onKeyboardUp(unsigned char key, int pX, int pY) {
 }
 
+
 // Move mouse with key pressed
 // pX, pY are the pixel coordinates of the cursor in the coordinate system of the operation system
 void onMouseMotion(int pX, int pY) {
+	/*
 	// Convert to normalized device space
 	float cX = 2.0f * pX / windowWidth - 1;	// flip y axis
 	float cY = 1.0f - 2.0f * pY / windowHeight;
 	printf("Mouse moved to (%3.2f, %3.2f)\n", cX, cY);
+	*/
 }
 
 // Mouse click event
 // pX, pY are the pixel coordinates of the cursor in the coordinate system of the operation system
 void onMouse(int button, int state, int pX, int pY) {
 	// Convert to normalized device space
-	float cX = 2.0f * pX / windowWidth - 1;	// flip y axis
-	float cY = 1.0f - 2.0f * pY / windowHeight;
+	float cX = 1.0f * pX / windowWidth;	// flip y axis
+	float cY = 1.0f - 1.0f * pY / windowHeight;
 
 	char * buttonStat;
 	switch (state) {
-	case GLUT_DOWN: buttonStat = (char *) "pressed"; break;
+	case GLUT_DOWN:
+		buttonStat = (char *) "pressed";
+		scene.acc.x = cX;
+		scene.acc.y = cY;
+		scene.move_counter += 1;
+		// printf("Acceleration %f %f\n", scene.acc.x, scene.acc.y);
+		// printf("Button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY);
+		break;
 	case GLUT_UP:   buttonStat = (char *) "released"; break;
 	}
-
+	/*
 	switch (button) {
 	case GLUT_LEFT_BUTTON:
 	   printf("Left button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY);
@@ -874,13 +951,19 @@ void onMouse(int button, int state, int pX, int pY) {
 	case GLUT_MIDDLE_BUTTON: printf("Middle button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY); break;
 	case GLUT_RIGHT_BUTTON:  printf("Right button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY);  break;
 	}
+	*/
 }
 
 // Idle event indicating that some time elapsed: do animation here
 void onIdle() {
-	long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
-	float tstart = 0.5f;
-	float tend = 0.6f;
-	scene.Animate(tstart, tend);
+	static float tend = 0;
+	float tstart = tend;
+	float dt = 0.001f;
+	tend = glutGet(GLUT_ELAPSED_TIME) / 1000.0f; // elapsed time since the start of the program
+	for (float t = tstart; t < tend; t += dt)
+	{
+		float delta = dt < (tend - t) ? dt : (tend - t);
+		scene.Animate(delta);
+	}
 	glutPostRedisplay();
 }

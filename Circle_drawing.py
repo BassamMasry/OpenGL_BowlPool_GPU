@@ -1,17 +1,18 @@
 import numpy as np
 import cv2
 
-width = 100
-height = 100
+width = 200
+height = 200
 img = np.zeros(width * height, dtype = np.uint8)
 r = 10
-numCircles = 3
+numCircles = 10
 
 maxrad = min(width, height) // 2
 
 for i in range (numCircles):
+    # t from 0 to 1
     t = i / (numCircles - 1)
-    r = maxrad * (1-t) + 1 / numCircles * t
+    r = int (maxrad * (1 - t))
     print (r)
     color = r * 2
     for x in range (maxrad, width):
